@@ -1,8 +1,9 @@
-from typing import Any
+from typing import Any, cast
 
 import graphene
 from graphene_pydantic import PydanticInputObjectType, PydanticObjectType
 from graphql import GraphQLError
+from pydantic import BaseModel
 
 from graphql_pydantic_dynamodb.domain.models import (
     CommentModel,
@@ -21,6 +22,14 @@ def _to_mapping(input_value: Any) -> dict[str, Any]:
     if hasattr(input_value, "items"):
         return dict(input_value.items())
     return {k: v for k, v in vars(input_value).items() if not k.startswith("_")}
+
+
+def _to_input_type(model: type[BaseModel]) -> type[PydanticInputObjectType]:
+    meta = type("Meta", (), {"model": model})
+    return cast(
+        type[PydanticInputObjectType],
+        type(f"{model.__name__}Type", (PydanticInputObjectType,), {"Meta": meta}),
+    )
 
 
 def _get_service(info: graphene.ResolveInfo) -> BlogService:
@@ -79,19 +88,9 @@ class CommentType(PydanticObjectType):
         return _get_service(info).get_post(parent.post_id)
 
 
-class CreateUserInputType(PydanticInputObjectType):
-    class Meta:
-        model = CreateUserInput
-
-
-class CreatePostInputType(PydanticInputObjectType):
-    class Meta:
-        model = CreatePostInput
-
-
-class CreateCommentInputType(PydanticInputObjectType):
-    class Meta:
-        model = CreateCommentInput
+CreateUserInputType = _to_input_type(CreateUserInput)
+CreatePostInputType = _to_input_type(CreatePostInput)
+CreateCommentInputType = _to_input_type(CreateCommentInput)
 
 
 class CreateUser(graphene.Mutation):

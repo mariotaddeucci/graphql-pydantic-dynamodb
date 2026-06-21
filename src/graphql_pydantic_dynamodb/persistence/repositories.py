@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
+from typing import TypeVar
 
 from dynantic import Attr
+from pydantic import BaseModel
 
 from graphql_pydantic_dynamodb.core.settings import get_settings
 from graphql_pydantic_dynamodb.domain.models import (
@@ -13,39 +15,27 @@ from graphql_pydantic_dynamodb.domain.models import (
 )
 from graphql_pydantic_dynamodb.persistence.models import CommentRecord, PostRecord, UserRecord
 
+ModelT = TypeVar("ModelT", bound=BaseModel)
+
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _to_model(model_type: type[ModelT], record: BaseModel) -> ModelT:
+    return model_type.model_validate(record.model_dump(mode="python"))
+
+
 def _to_user_model(record: UserRecord) -> UserModel:
-    return UserModel(
-        user_id=record.user_id,
-        name=record.name,
-        email=record.email,
-        created_at=record.created_at,
-    )
+    return _to_model(UserModel, record)
 
 
 def _to_post_model(record: PostRecord) -> PostModel:
-    return PostModel(
-        post_id=record.post_id,
-        author_id=record.author_id,
-        title=record.title,
-        content=record.content,
-        tags=list(record.tags),
-        created_at=record.created_at,
-    )
+    return _to_model(PostModel, record)
 
 
 def _to_comment_model(record: CommentRecord) -> CommentModel:
-    return CommentModel(
-        post_id=record.post_id,
-        comment_id=record.comment_id,
-        author_id=record.author_id,
-        body=record.body,
-        created_at=record.created_at,
-    )
+    return _to_model(CommentModel, record)
 
 
 class UserRepository:

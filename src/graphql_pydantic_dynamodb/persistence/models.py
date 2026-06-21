@@ -8,6 +8,12 @@ _settings = get_settings()
 
 
 class UserRecord(DynamoModel):
+    """Registro Dynantic da tabela de usuários.
+
+    Partição:
+    - user_id
+    """
+
     user_id: str = Key()
     name: str
     email: str
@@ -18,6 +24,16 @@ class UserRecord(DynamoModel):
 
 
 class PostRecord(DynamoModel):
+    """Registro Dynantic da tabela de posts.
+
+    Partição:
+    - post_id
+
+    Índice secundário global (posts-by-author-index):
+    - HASH: author_id
+    - RANGE: created_at
+    """
+
     post_id: str = Key()
     author_id: str = GSIKey(index_name=_settings.posts_by_author_index)
     created_at: datetime = GSISortKey(index_name=_settings.posts_by_author_index)
@@ -30,6 +46,13 @@ class PostRecord(DynamoModel):
 
 
 class CommentRecord(DynamoModel):
+    """Registro Dynantic da tabela de comentários.
+
+    Chave composta:
+    - HASH: post_id
+    - RANGE: comment_id
+    """
+
     post_id: str = Key()
     comment_id: str = SortKey()
     author_id: str
