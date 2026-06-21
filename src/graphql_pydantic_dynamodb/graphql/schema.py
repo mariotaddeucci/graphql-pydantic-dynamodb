@@ -96,29 +96,93 @@ def _graphene_scalar(annotation: Any) -> Any | None:
     return None
 
 
-def _build_filter_fields(field_name: str, annotation: Any) -> dict[str, graphene.InputField]:
+_FILTER_DESCRIPTIONS = {
+    "eq": "Deve ser igual ao valor informado.",
+    "is": "Deve corresponder ao valor booleano informado.",
+    "gte": "Deve ser maior ou igual ao valor informado.",
+    "gt": "Deve ser maior que o valor informado.",
+    "lte": "Deve ser menor ou igual ao valor informado.",
+    "lt": "Deve ser menor que o valor informado.",
+    "is_in": "Deve ser um dos valores informados.",
+}
+
+_PAGINATION_LIMIT_DESCRIPTION = "Quantidade máxima de itens por página."
+_PAGINATION_NEXT_TOKEN_ARGUMENT_DESCRIPTION = (
+    "Token da próxima página. Use o token retornado na resposta anterior."
+)
+_PAGINATION_NEXT_TOKEN_FIELD_DESCRIPTION = (
+    "Token para buscar a próxima página. Retorna nulo quando não há mais itens."
+)
+_PAGINATION_FILTERS_DESCRIPTION = "Filtros aplicados aos itens desta página."
+
+
+def _normalize_description(description: str | None, default: str) -> str:
+    normalized = (description or default).strip()
+    if not normalized.endswith("."):
+        normalized = f"{normalized}."
+    return normalized
+
+
+def _compose_filter_description(base_description: str | None, op: str) -> str:
+    description = _normalize_description(base_description, "Valor do campo.")
+    return f"{description} {_FILTER_DESCRIPTIONS[op]}"
+
+
+def _compose_page_items_description(base_description: str | None) -> str:
+    item_description = _normalize_description(base_description, "Item retornado na página.")
+    return f"Itens da página atual. {item_description}"
+
+
+def _build_filter_fields(
+    field_name: str,
+    annotation: Any,
+    field_description: str | None,
+) -> dict[str, graphene.InputField]:
     scalar = _graphene_scalar(annotation)
     if scalar is None:
         return {}
 
     normalized = _unwrap_optional(annotation)
-    fields = {f"{field_name}_eq": graphene.InputField(scalar)}
+    fields = {
+        f"{field_name}_eq": graphene.InputField(
+            scalar,
+            description=_compose_filter_description(field_description, "eq"),
+        )
+    }
     if normalized is bool:
-        fields[f"{field_name}_is"] = graphene.InputField(graphene.Boolean)
+        fields[f"{field_name}_is"] = graphene.InputField(
+            graphene.Boolean,
+            description=_compose_filter_description(field_description, "is"),
+        )
     if normalized in {datetime, date, int, float}:
-        fields[f"{field_name}_gte"] = graphene.InputField(scalar)
-        fields[f"{field_name}_gt"] = graphene.InputField(scalar)
-        fields[f"{field_name}_lte"] = graphene.InputField(scalar)
-        fields[f"{field_name}_lt"] = graphene.InputField(scalar)
+        fields[f"{field_name}_gte"] = graphene.InputField(
+            scalar,
+            description=_compose_filter_description(field_description, "gte"),
+        )
+        fields[f"{field_name}_gt"] = graphene.InputField(
+            scalar,
+            description=_compose_filter_description(field_description, "gt"),
+        )
+        fields[f"{field_name}_lte"] = graphene.InputField(
+            scalar,
+            description=_compose_filter_description(field_description, "lte"),
+        )
+        fields[f"{field_name}_lt"] = graphene.InputField(
+            scalar,
+            description=_compose_filter_description(field_description, "lt"),
+        )
     if _is_enum(normalized) or _is_literal(normalized):
-        fields[f"{field_name}_is_in"] = graphene.InputField(graphene.List(graphene.NonNull(scalar)))
+        fields[f"{field_name}_is_in"] = graphene.InputField(
+            graphene.List(graphene.NonNull(scalar)),
+            description=_compose_filter_description(field_description, "is_in"),
+        )
     return fields
 
 
 def _to_filter_input_type(model: type[BaseModel]) -> type[graphene.InputObjectType]:
     fields: dict[str, graphene.InputField] = {}
     for field_name, field_info in model.model_fields.items():
-        fields.update(_build_filter_fields(field_name, field_info.annotation))
+        fields.update(_build_filter_fields(field_name, field_info.annotation, field_info.description))
 
     type_name = f"{model.__name__.removesuffix('Model')}FilterInput"
     return cast(type[graphene.InputObjectType], type(type_name, (graphene.InputObjectType,), fields))
@@ -197,18 +261,30 @@ class CommentType(PydanticObjectType):
 
 
 class UserPageType(graphene.ObjectType):
-    items = graphene.List(UserType, required=True)
-    next_token = graphene.String()
+    items = graphene.List(
+        UserType,
+        required=True,
+        description=_compose_page_items_description(UserModel.__doc__),
+    )
+    next_token = graphene.String(description=_PAGINATION_NEXT_TOKEN_FIELD_DESCRIPTION)
 
 
 class PostPageType(graphene.ObjectType):
-    items = graphene.List(PostType, required=True)
-    next_token = graphene.String()
+    items = graphene.List(
+        PostType,
+        required=True,
+        description=_compose_page_items_description(PostModel.__doc__),
+    )
+    next_token = graphene.String(description=_PAGINATION_NEXT_TOKEN_FIELD_DESCRIPTION)
 
 
 class CommentPageType(graphene.ObjectType):
-    items = graphene.List(CommentType, required=True)
-    next_token = graphene.String()
+    items = graphene.List(
+        CommentType,
+        required=True,
+        description=_compose_page_items_description(CommentModel.__doc__),
+    )
+    next_token = graphene.String(description=_PAGINATION_NEXT_TOKEN_FIELD_DESCRIPTION)
 
 
 CreateUserInputType = _to_input_type(CreateUserInput)
@@ -333,35 +409,35 @@ class Query(graphene.ObjectType):
     )
     users_page = graphene.Field(
         UserPageType,
-        limit=graphene.Int(default_value=20),
-        next_token=graphene.String(),
-        filters=graphene.Argument(UserFilterInputType),
+        limit=graphene.Int(default_value=20, description=_PAGINATION_LIMIT_DESCRIPTION),
+        next_token=graphene.String(description=_PAGINATION_NEXT_TOKEN_ARGUMENT_DESCRIPTION),
+        filters=graphene.Argument(UserFilterInputType, description=_PAGINATION_FILTERS_DESCRIPTION),
     )
     posts_page = graphene.Field(
         PostPageType,
-        limit=graphene.Int(default_value=20),
-        next_token=graphene.String(),
-        filters=graphene.Argument(PostFilterInputType),
+        limit=graphene.Int(default_value=20, description=_PAGINATION_LIMIT_DESCRIPTION),
+        next_token=graphene.String(description=_PAGINATION_NEXT_TOKEN_ARGUMENT_DESCRIPTION),
+        filters=graphene.Argument(PostFilterInputType, description=_PAGINATION_FILTERS_DESCRIPTION),
     )
     comments_page = graphene.Field(
         CommentPageType,
-        limit=graphene.Int(default_value=20),
-        next_token=graphene.String(),
-        filters=graphene.Argument(CommentFilterInputType),
+        limit=graphene.Int(default_value=20, description=_PAGINATION_LIMIT_DESCRIPTION),
+        next_token=graphene.String(description=_PAGINATION_NEXT_TOKEN_ARGUMENT_DESCRIPTION),
+        filters=graphene.Argument(CommentFilterInputType, description=_PAGINATION_FILTERS_DESCRIPTION),
     )
     posts_by_author_page = graphene.Field(
         PostPageType,
         author_id=graphene.String(required=True),
-        limit=graphene.Int(default_value=20),
-        next_token=graphene.String(),
-        filters=graphene.Argument(PostFilterInputType),
+        limit=graphene.Int(default_value=20, description=_PAGINATION_LIMIT_DESCRIPTION),
+        next_token=graphene.String(description=_PAGINATION_NEXT_TOKEN_ARGUMENT_DESCRIPTION),
+        filters=graphene.Argument(PostFilterInputType, description=_PAGINATION_FILTERS_DESCRIPTION),
     )
     comments_by_post_page = graphene.Field(
         CommentPageType,
         post_id=graphene.String(required=True),
-        limit=graphene.Int(default_value=20),
-        next_token=graphene.String(),
-        filters=graphene.Argument(CommentFilterInputType),
+        limit=graphene.Int(default_value=20, description=_PAGINATION_LIMIT_DESCRIPTION),
+        next_token=graphene.String(description=_PAGINATION_NEXT_TOKEN_ARGUMENT_DESCRIPTION),
+        filters=graphene.Argument(CommentFilterInputType, description=_PAGINATION_FILTERS_DESCRIPTION),
     )
 
     @staticmethod

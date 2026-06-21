@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from graphql_pydantic_dynamodb.graphql.schema import execute_graphql
 from graphql_pydantic_dynamodb.services.blog_service import BlogService
@@ -277,8 +277,8 @@ def test_filter_input_generation_supports_enum_literal_and_date_ops() -> None:
     class SampleModel(BaseModel):
         status: StatusEnum
         visibility: Literal["public", "private"]
-        published_at: datetime
-        score: int
+        published_at: datetime = Field(description="Publish date.")
+        score: int = Field(description="Score.")
         featured: bool
 
     filter_input = schema_module._to_filter_input_type(SampleModel)
@@ -299,3 +299,6 @@ def test_filter_input_generation_supports_enum_literal_and_date_ops() -> None:
     assert "score_lt" in filter_input._meta.fields
     assert "featured_eq" in filter_input._meta.fields
     assert "featured_is" in filter_input._meta.fields
+    assert filter_input._meta.fields["published_at_gt"].description == "Publish date. Deve ser maior que o valor informado."
+    assert filter_input._meta.fields["score_lte"].description == "Score. Deve ser menor ou igual ao valor informado."
+    assert filter_input._meta.fields["status_is_in"].description == "Valor do campo. Deve ser um dos valores informados."
