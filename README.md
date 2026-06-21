@@ -107,6 +107,10 @@ Os campos `user_id`, `post_id` e `comment_id` agora são gerados automaticamente
 
 As descrições dos modelos e campos agora são definidas diretamente nos modelos Pydantic (`Field(description=...)` e docstrings das classes). Essas descrições são expostas no schema GraphQL e ficam disponíveis via introspection para o frontend (incluindo o GraphiQL).
 
+Nos filtros (`*FilterInput`), cada operação também herda a descrição do campo original e adiciona uma frase simples da operação (por exemplo: "Data e hora de criação da publicação. Deve ser maior que o valor informado.").
+
+Nas respostas e argumentos de paginação, também foram adicionadas descrições simples no schema (`items`, `nextToken`, `limit` e `filters`). O campo `items` herda a descrição do modelo do item paginado.
+
 ## Configuração via ambiente
 
 Variáveis prefixadas com `APP_`:
