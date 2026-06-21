@@ -26,8 +26,10 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "fastapi>=0.116.0",
     "moto>=5.2.2",
     "pytest>=9.1.1",
+    "uvicorn>=0.35.0",
 ]
 
 [tool.pytest.ini_options]

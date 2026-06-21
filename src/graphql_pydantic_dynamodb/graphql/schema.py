@@ -30,9 +30,12 @@ def _to_mapping(input_value: Any) -> dict[str, Any]:
 
 def _to_input_type(model: type[BaseModel]) -> type[PydanticInputObjectType]:
     meta = type("Meta", (), {"model": model})
+    attrs: dict[str, Any] = {"Meta": meta}
+    if model.__doc__:
+        attrs["__doc__"] = model.__doc__.strip()
     return cast(
         type[PydanticInputObjectType],
-        type(f"{model.__name__}Type", (PydanticInputObjectType,), {"Meta": meta}),
+        type(f"{model.__name__}Type", (PydanticInputObjectType,), attrs),
     )
 
 
