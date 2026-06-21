@@ -97,23 +97,23 @@ def _graphene_scalar(annotation: Any) -> Any | None:
 
 
 _FILTER_DESCRIPTIONS = {
-    "eq": "Deve ser igual ao valor informado.",
-    "is": "Deve corresponder ao valor booleano informado.",
-    "gte": "Deve ser maior ou igual ao valor informado.",
-    "gt": "Deve ser maior que o valor informado.",
-    "lte": "Deve ser menor ou igual ao valor informado.",
-    "lt": "Deve ser menor que o valor informado.",
-    "is_in": "Deve ser um dos valores informados.",
+    "eq": "Must equal the provided value.",
+    "is": "Must match the provided boolean value.",
+    "gte": "Must be greater than or equal to the provided value.",
+    "gt": "Must be greater than the provided value.",
+    "lte": "Must be less than or equal to the provided value.",
+    "lt": "Must be less than the provided value.",
+    "is_in": "Must be one of the provided values.",
 }
 
-_PAGINATION_LIMIT_DESCRIPTION = "Quantidade máxima de itens por página."
+_PAGINATION_LIMIT_DESCRIPTION = "Maximum number of items per page."
 _PAGINATION_NEXT_TOKEN_ARGUMENT_DESCRIPTION = (
-    "Token da próxima página. Use o token retornado na resposta anterior."
+    "Token for the next page. Use the token returned in the previous response."
 )
 _PAGINATION_NEXT_TOKEN_FIELD_DESCRIPTION = (
-    "Token para buscar a próxima página. Retorna nulo quando não há mais itens."
+    "Token for fetching the next page. Returns null when there are no more items."
 )
-_PAGINATION_FILTERS_DESCRIPTION = "Filtros aplicados aos itens desta página."
+_PAGINATION_FILTERS_DESCRIPTION = "Filters applied to the items on this page."
 
 
 def _normalize_description(description: str | None, default: str) -> str:
@@ -124,13 +124,13 @@ def _normalize_description(description: str | None, default: str) -> str:
 
 
 def _compose_filter_description(base_description: str | None, op: str) -> str:
-    description = _normalize_description(base_description, "Valor do campo.")
+    description = _normalize_description(base_description, "Field value.")
     return f"{description} {_FILTER_DESCRIPTIONS[op]}"
 
 
 def _compose_page_items_description(base_description: str | None) -> str:
-    item_description = _normalize_description(base_description, "Item retornado na página.")
-    return f"Itens da página atual. {item_description}"
+    item_description = _normalize_description(base_description, "Item returned on the page.")
+    return f"Items from the current page. {item_description}"
 
 
 def _build_filter_fields(

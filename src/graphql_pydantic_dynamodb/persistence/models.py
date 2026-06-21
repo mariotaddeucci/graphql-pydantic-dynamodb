@@ -8,9 +8,9 @@ _settings = get_settings()
 
 
 class UserRecord(DynamoModel):
-    """Registro Dynantic da tabela de usuários.
+    """Dynantic record for the users table.
 
-    Partição:
+    Partition:
     - user_id
     """
 
@@ -24,12 +24,12 @@ class UserRecord(DynamoModel):
 
 
 class PostRecord(DynamoModel):
-    """Registro Dynantic da tabela de posts.
+    """Dynantic record for the posts table.
 
-    Partição:
+    Partition:
     - post_id
 
-    Índice secundário global (posts-by-author-index):
+    Global secondary index (posts-by-author-index):
     - HASH: author_id
     - RANGE: created_at
     """
@@ -46,9 +46,9 @@ class PostRecord(DynamoModel):
 
 
 class CommentRecord(DynamoModel):
-    """Registro Dynantic da tabela de comentários.
+    """Dynantic record for the comments table.
 
-    Chave composta:
+    Composite key:
     - HASH: post_id
     - RANGE: comment_id
     """

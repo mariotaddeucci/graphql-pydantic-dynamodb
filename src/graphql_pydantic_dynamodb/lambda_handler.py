@@ -102,13 +102,13 @@ _GRAPHIQL_HTML_TEMPLATE = """<!doctype html>
         function renderFallback(errorMessage) {
           root.innerHTML = `
             <div class="fallback">
-              <strong>GraphiQL não carregou.</strong>
+              <strong>GraphiQL failed to load.</strong>
               <div>${errorMessage}</div>
-              <div>Você ainda pode executar consultas abaixo:</div>
+              <div>You can still run queries below:</div>
               <textarea id="fallback-query">query { __typename }</textarea>
               <textarea id="fallback-variables" placeholder='{"id":"123"}'></textarea>
-              <button id="fallback-run">Executar</button>
-              <pre id="fallback-result">Aguardando execução...</pre>
+              <button id="fallback-run">Execute</button>
+              <pre id="fallback-result">Waiting for execution...</pre>
             </div>
           `;
 

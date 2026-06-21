@@ -79,20 +79,20 @@ def test_lambda_handler_exposes_model_descriptions_in_introspection() -> None:
         arg["name"]: arg["description"] for arg in query_fields["postsByAuthorPage"]["args"]
     }
 
-    assert user_type["description"] == "Representa um usuário do blog."
-    assert user_fields["userId"] == "Identificador único do usuário."
-    assert user_fields["createdAt"] == "Data e hora de criação do usuário."
-    assert input_type["description"] == "Payload para criação de publicação."
-    assert input_fields["postId"] == "Identificador da publicação (ULID gerado automaticamente quando omitido)."
-    assert input_fields["title"] == "Título da publicação."
-    assert filter_fields["createdAtGt"] == "Data e hora de criação da publicação. Deve ser maior que o valor informado."
-    assert filter_fields["createdAtGte"] == "Data e hora de criação da publicação. Deve ser maior ou igual ao valor informado."
-    assert filter_fields["createdAtLte"] == "Data e hora de criação da publicação. Deve ser menor ou igual ao valor informado."
-    assert post_page_fields["items"] == "Itens da página atual. Representa uma publicação criada por um usuário."
-    assert post_page_fields["nextToken"] == "Token para buscar a próxima página. Retorna nulo quando não há mais itens."
-    assert posts_by_author_page_args["limit"] == "Quantidade máxima de itens por página."
+    assert user_type["description"] == "Represents a blog user."
+    assert user_fields["userId"] == "Unique identifier for the user."
+    assert user_fields["createdAt"] == "Date and time when the user was created."
+    assert input_type["description"] == "Payload for creating a post."
+    assert input_fields["postId"] == "Post identifier (ULID auto-generated when omitted)."
+    assert input_fields["title"] == "Title of the post."
+    assert filter_fields["createdAtGt"] == "Date and time when the post was created. Must be greater than the provided value."
+    assert filter_fields["createdAtGte"] == "Date and time when the post was created. Must be greater than or equal to the provided value."
+    assert filter_fields["createdAtLte"] == "Date and time when the post was created. Must be less than or equal to the provided value."
+    assert post_page_fields["items"] == "Items from the current page. Represents a post created by a user."
+    assert post_page_fields["nextToken"] == "Token for fetching the next page. Returns null when there are no more items."
+    assert posts_by_author_page_args["limit"] == "Maximum number of items per page."
     assert (
         posts_by_author_page_args["nextToken"]
-        == "Token da próxima página. Use o token retornado na resposta anterior."
+        == "Token for the next page. Use the token returned in the previous response."
     )
-    assert posts_by_author_page_args["filters"] == "Filtros aplicados aos itens desta página."
+    assert posts_by_author_page_args["filters"] == "Filters applied to the items on this page."

@@ -11,46 +11,46 @@ def _new_ulid() -> str:
 
 
 class UserModel(BaseModel):
-    """Representa um usuário do blog."""
+    """Represents a blog user."""
 
-    user_id: str = Field(description="Identificador único do usuário.")
-    name: str = Field(description="Nome de exibição do usuário.")
-    email: str = Field(description="Endereço de e-mail do usuário.")
-    created_at: datetime = Field(description="Data e hora de criação do usuário.")
+    user_id: str = Field(description="Unique identifier for the user.")
+    name: str = Field(description="Display name of the user.")
+    email: str = Field(description="Email address of the user.")
+    created_at: datetime = Field(description="Date and time when the user was created.")
 
 
 class PostModel(BaseModel):
-    """Representa uma publicação criada por um usuário."""
+    """Represents a post created by a user."""
 
-    post_id: str = Field(description="Identificador único da publicação.")
-    author_id: str = Field(description="Identificador do autor da publicação.")
-    title: str = Field(description="Título da publicação.")
-    content: str = Field(description="Conteúdo completo da publicação.")
-    tags: list[str] = Field(default_factory=list, description="Lista de tags associadas à publicação.")
-    created_at: datetime = Field(description="Data e hora de criação da publicação.")
+    post_id: str = Field(description="Unique identifier for the post.")
+    author_id: str = Field(description="Identifier of the post author.")
+    title: str = Field(description="Title of the post.")
+    content: str = Field(description="Full content of the post.")
+    tags: list[str] = Field(default_factory=list, description="List of tags associated with the post.")
+    created_at: datetime = Field(description="Date and time when the post was created.")
 
 
 class CommentModel(BaseModel):
-    """Representa um comentário associado a uma publicação."""
+    """Represents a comment associated with a post."""
 
-    post_id: str = Field(description="Identificador da publicação comentada.")
-    comment_id: str = Field(description="Identificador único do comentário.")
-    author_id: str = Field(description="Identificador do autor do comentário.")
-    body: str = Field(description="Texto do comentário.")
-    created_at: datetime = Field(description="Data e hora de criação do comentário.")
+    post_id: str = Field(description="Identifier of the post being commented on.")
+    comment_id: str = Field(description="Unique identifier for the comment.")
+    author_id: str = Field(description="Identifier of the comment author.")
+    body: str = Field(description="Text of the comment.")
+    created_at: datetime = Field(description="Date and time when the comment was created.")
 
 
 class CreateUserInput(BaseModel):
-    """Payload para criação de usuário."""
+    """Payload for creating a user."""
 
     user_id: str = Field(
         default_factory=_new_ulid,
         min_length=1,
         max_length=128,
-        description="Identificador do usuário (ULID gerado automaticamente quando omitido).",
+        description="User identifier (ULID auto-generated when omitted).",
     )
-    name: str = Field(min_length=1, max_length=120, description="Nome de exibição do usuário.")
-    email: str = Field(description="Endereço de e-mail válido do usuário.")
+    name: str = Field(min_length=1, max_length=120, description="Display name of the user.")
+    email: str = Field(description="Valid email address of the user.")
 
     @field_validator("user_id", mode="before")
     @classmethod
@@ -64,18 +64,18 @@ class CreateUserInput(BaseModel):
 
 
 class CreatePostInput(BaseModel):
-    """Payload para criação de publicação."""
+    """Payload for creating a post."""
 
     post_id: str = Field(
         default_factory=_new_ulid,
         min_length=1,
         max_length=128,
-        description="Identificador da publicação (ULID gerado automaticamente quando omitido).",
+        description="Post identifier (ULID auto-generated when omitted).",
     )
-    author_id: str = Field(min_length=1, max_length=128, description="Identificador do autor da publicação.")
-    title: str = Field(min_length=1, max_length=200, description="Título da publicação.")
-    content: str = Field(min_length=1, description="Conteúdo completo da publicação.")
-    tags: list[str] = Field(default_factory=list, description="Lista de tags associadas à publicação.")
+    author_id: str = Field(min_length=1, max_length=128, description="Identifier of the post author.")
+    title: str = Field(min_length=1, max_length=200, description="Title of the post.")
+    content: str = Field(min_length=1, description="Full content of the post.")
+    tags: list[str] = Field(default_factory=list, description="List of tags associated with the post.")
 
     @field_validator("post_id", mode="before")
     @classmethod
@@ -84,17 +84,17 @@ class CreatePostInput(BaseModel):
 
 
 class CreateCommentInput(BaseModel):
-    """Payload para criação de comentário."""
+    """Payload for creating a comment."""
 
-    post_id: str = Field(min_length=1, max_length=128, description="Identificador da publicação comentada.")
+    post_id: str = Field(min_length=1, max_length=128, description="Identifier of the post being commented on.")
     comment_id: str = Field(
         default_factory=_new_ulid,
         min_length=1,
         max_length=128,
-        description="Identificador do comentário (ULID gerado automaticamente quando omitido).",
+        description="Comment identifier (ULID auto-generated when omitted).",
     )
-    author_id: str = Field(min_length=1, max_length=128, description="Identificador do autor do comentário.")
-    body: str = Field(min_length=1, description="Texto do comentário.")
+    author_id: str = Field(min_length=1, max_length=128, description="Identifier of the comment author.")
+    body: str = Field(min_length=1, description="Text of the comment.")
 
     @field_validator("comment_id", mode="before")
     @classmethod

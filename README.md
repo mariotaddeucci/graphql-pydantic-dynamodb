@@ -1,15 +1,15 @@
 # graphql-pydantic-dynamodb
 
-Projeto base completo com:
+Complete base project with:
 
-- **GraphQL** com `graphene` + `graphene-pydantic`
-- **GraphiQL** no endpoint Lambda (`GET`) para exploração do schema
-- **Modelagem tipada** com `pydantic`
-- **Persistência no DynamoDB** com `dynantic`
-- **Execução em AWS Lambda** via handler Python
-- Estrutura padrão com `src/` e `test/`
+- **GraphQL** with `graphene` + `graphene-pydantic`
+- **GraphiQL** on the Lambda endpoint (`GET`) for schema exploration
+- **Typed models** with `pydantic`
+- **DynamoDB persistence** with `dynantic`
+- **AWS Lambda execution** via Python handler
+- Standard structure with `src/` and `test/`
 
-## Estrutura
+## Structure
 
 ```text
 src/graphql_pydantic_dynamodb/
@@ -29,16 +29,17 @@ src/graphql_pydantic_dynamodb/
 
 test/
 ├── conftest.py
-└── test_graphql_api.py
+├── test_graphql_api.py
+└── test_lambda_handler.py
 ```
 
-## Modelagem e relações (joins em nível de resolver)
+## Models and relationships (resolver-level joins)
 
 - `User`
-- `Post` (GSI por autor: `posts-by-author-index`)
+- `Post` (GSI by author: `posts-by-author-index`)
 - `Comment`
 
-Os *joins* são resolvidos nos resolvers GraphQL:
+*Joins* are resolved in the GraphQL resolvers:
 
 - `User.posts`
 - `Post.author`
@@ -46,9 +47,9 @@ Os *joins* são resolvidos nos resolvers GraphQL:
 - `Comment.author`
 - `Comment.post`
 
-## Geração automática de queries e filtros
+## Automatic query and filter generation
 
-As queries de listagem agora aceitam `filters` gerados automaticamente a partir dos campos dos modelos Pydantic relacionados:
+List queries now accept `filters` auto-generated from the fields of the related Pydantic models:
 
 - `users(filters: UserFilterInput)`
 - `posts(filters: PostFilterInput)`
@@ -56,7 +57,7 @@ As queries de listagem agora aceitam `filters` gerados automaticamente a partir 
 - `postsByAuthor(authorId: String!, filters: PostFilterInput)`
 - `commentsByPost(postId: String!, filters: CommentFilterInput)`
 
-Também foram adicionadas versões paginadas com token de cursor (`nextToken`):
+Paginated versions with cursor token (`nextToken`) were also added:
 
 - `usersPage(limit: Int, nextToken: String, filters: UserFilterInput)`
 - `postsPage(limit: Int, nextToken: String, filters: PostFilterInput)`
@@ -64,14 +65,14 @@ Também foram adicionadas versões paginadas com token de cursor (`nextToken`):
 - `postsByAuthorPage(authorId: String!, limit: Int, nextToken: String, filters: PostFilterInput)`
 - `commentsByPostPage(postId: String!, limit: Int, nextToken: String, filters: CommentFilterInput)`
 
-Regras de geração de filtros:
+Filter generation rules:
 
-- Campos escalares suportados geram `*_eq`
-- Campos booleanos geram também `*_is`
-- Campos `Literal`/`Enum` geram também `*_is_in`
-- Campos de data (`date`/`datetime`) e numéricos (`int`/`float`) geram `*_eq`, `*_gte`, `*_gt`, `*_lte` e `*_lt`
+- Supported scalar fields generate `*_eq`
+- Boolean fields also generate `*_is`
+- `Literal`/`Enum` fields also generate `*_is_in`
+- Date (`date`/`datetime`) and numeric (`int`/`float`) fields generate `*_eq`, `*_gte`, `*_gt`, `*_lte`, and `*_lt`
 
-Exemplo:
+Example:
 
 ```graphql
 query FilteredPosts($authorId: String!, $createdAt: DateTime!) {
@@ -85,7 +86,7 @@ query FilteredPosts($authorId: String!, $createdAt: DateTime!) {
 }
 ```
 
-Exemplo com paginação por token:
+Example with token-based pagination:
 
 ```graphql
 query PaginatedPosts($authorId: String!, $nextToken: String) {
@@ -99,56 +100,56 @@ query PaginatedPosts($authorId: String!, $nextToken: String) {
 }
 ```
 
-## IDs automáticos com ULID
+## Automatic IDs with ULID
 
-Os campos `user_id`, `post_id` e `comment_id` agora são gerados automaticamente com `python-ulid` quando não são enviados no input. Isso mantém os modelos Pydantic como fonte única para validação e para os tipos GraphQL (`graphene-pydantic`).
+The fields `user_id`, `post_id`, and `comment_id` are now auto-generated with `python-ulid` when not provided in the input. This keeps Pydantic models as the single source of truth for validation and GraphQL types (`graphene-pydantic`).
 
-## Descrições dos modelos no schema GraphQL
+## Model descriptions in the GraphQL schema
 
-As descrições dos modelos e campos agora são definidas diretamente nos modelos Pydantic (`Field(description=...)` e docstrings das classes). Essas descrições são expostas no schema GraphQL e ficam disponíveis via introspection para o frontend (incluindo o GraphiQL).
+Model and field descriptions are now defined directly in the Pydantic models (`Field(description=...)` and class docstrings). These descriptions are exposed in the GraphQL schema and available via introspection for the frontend (including GraphiQL).
 
-Nos filtros (`*FilterInput`), cada operação também herda a descrição do campo original e adiciona uma frase simples da operação (por exemplo: "Data e hora de criação da publicação. Deve ser maior que o valor informado.").
+In filters (`*FilterInput`), each operation also inherits the description from the original field and appends a simple operation phrase (e.g.: "Date and time when the post was created. Must be greater than the provided value.").
 
-Nas respostas e argumentos de paginação, também foram adicionadas descrições simples no schema (`items`, `nextToken`, `limit` e `filters`). O campo `items` herda a descrição do modelo do item paginado.
+In pagination responses and arguments, simple descriptions were also added to the schema (`items`, `nextToken`, `limit`, and `filters`). The `items` field inherits the description from the paginated item model.
 
-## Configuração via ambiente
+## Environment configuration
 
-Variáveis prefixadas com `APP_`:
+Variables prefixed with `APP_`:
 
 - `APP_AWS_REGION` (default: `us-east-1`)
-- `APP_DYNAMODB_ENDPOINT_URL` (opcional para localstack/dynamodb-local)
+- `APP_DYNAMODB_ENDPOINT_URL` (optional for localstack/dynamodb-local)
 - `APP_USERS_TABLE` (default: `users`)
 - `APP_POSTS_TABLE` (default: `posts`)
 - `APP_COMMENTS_TABLE` (default: `comments`)
 - `APP_POSTS_BY_AUTHOR_INDEX` (default: `posts-by-author-index`)
 
-## Como rodar
+## How to run
 
-1. Instalar dependências:
+1. Install dependencies:
 
 ```bash
 uv sync --dev
 ```
 
-2. Executar testes:
+2. Run tests:
 
 ```bash
 uv run pytest
 ```
 
-3. Exibir schema GraphQL (script do projeto):
+3. Display GraphQL schema (project script):
 
 ```bash
 uv run graphql-pydantic-dynamodb
 ```
 
-4. Subir servidor local com GraphiQL:
+4. Start local server with GraphiQL:
 
 ```bash
 uv run python dev.py --reload
 ```
 
-## Exemplo de payload para Lambda
+## Lambda payload example
 
 ```json
 {
@@ -157,15 +158,15 @@ uv run python dev.py --reload
 }
 ```
 
-Handler de entrada:
+Entry handler:
 
 ```python
 from graphql_pydantic_dynamodb.lambda_handler import handler
 ```
 
-### GraphiQL no Lambda
+### GraphiQL on Lambda
 
-Com a mesma função Lambda:
+With the same Lambda function:
 
-- `GET /graphql` retorna a interface GraphiQL
-- `POST /graphql` executa queries/mutations GraphQL
+- `GET /graphql` returns the GraphiQL interface
+- `POST /graphql` executes GraphQL queries/mutations

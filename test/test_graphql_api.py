@@ -66,8 +66,8 @@ def test_graphql_creates_entities_and_resolves_relationships(blog_service: BlogS
         variables={
             "input": {
                 "authorId": author_id,
-                "title": "GraphQL na Lambda",
-                "content": "Conteudo",
+                "title": "GraphQL on Lambda",
+                "content": "Content",
                 "tags": ["serverless", "graphql"]
             }
         },
@@ -93,7 +93,7 @@ def test_graphql_creates_entities_and_resolves_relationships(blog_service: BlogS
             "input": {
                 "postId": post_id,
                 "authorId": commenter_id,
-                "body": "Excelente artigo!"
+                "body": "Excellent article!"
             }
         },
         service=blog_service,
@@ -183,7 +183,7 @@ def test_graphql_rejects_post_without_existing_author(blog_service: BlogService)
         variables={
             "input": {
                 "authorId": "unknown-user",
-                "title": "Nao deve criar",
+                "title": "Should not create",
                 "content": "x",
                 "tags": []
             }
@@ -225,7 +225,7 @@ def test_graphql_supports_pagination_with_next_token(blog_service: BlogService) 
                 "input": {
                     "authorId": author_id,
                     "title": f"Post {index}",
-                    "content": "Conteudo",
+                    "content": "Content",
                     "tags": [],
                 }
             },
@@ -299,6 +299,6 @@ def test_filter_input_generation_supports_enum_literal_and_date_ops() -> None:
     assert "score_lt" in filter_input._meta.fields
     assert "featured_eq" in filter_input._meta.fields
     assert "featured_is" in filter_input._meta.fields
-    assert filter_input._meta.fields["published_at_gt"].description == "Publish date. Deve ser maior que o valor informado."
-    assert filter_input._meta.fields["score_lte"].description == "Score. Deve ser menor ou igual ao valor informado."
-    assert filter_input._meta.fields["status_is_in"].description == "Valor do campo. Deve ser um dos valores informados."
+    assert filter_input._meta.fields["published_at_gt"].description == "Publish date. Must be greater than the provided value."
+    assert filter_input._meta.fields["score_lte"].description == "Score. Must be less than or equal to the provided value."
+    assert filter_input._meta.fields["status_is_in"].description == "Field value. Must be one of the provided values."

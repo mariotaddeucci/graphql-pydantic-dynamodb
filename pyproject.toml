@@ -1,7 +1,7 @@
 [project]
 name = "graphql-pydantic-dynamodb"
 version = "0.1.0"
-description = "GraphQL API em AWS Lambda com Pydantic e DynamoDB via Dynantic"
+description = "GraphQL API on AWS Lambda with Pydantic and DynamoDB via Dynantic"
 readme = "README.md"
 authors = [
     { name = "Mario Taddeucci", email = "taddeucci23@gmail.com" }
