@@ -45,6 +45,59 @@ Os *joins* são resolvidos nos resolvers GraphQL:
 - `Comment.author`
 - `Comment.post`
 
+## Geração automática de queries e filtros
+
+As queries de listagem agora aceitam `filters` gerados automaticamente a partir dos campos dos modelos Pydantic relacionados:
+
+- `users(filters: UserFilterInput)`
+- `posts(filters: PostFilterInput)`
+- `comments(filters: CommentFilterInput)`
+- `postsByAuthor(authorId: String!, filters: PostFilterInput)`
+- `commentsByPost(postId: String!, filters: CommentFilterInput)`
+
+Também foram adicionadas versões paginadas com token de cursor (`nextToken`):
+
+- `usersPage(limit: Int, nextToken: String, filters: UserFilterInput)`
+- `postsPage(limit: Int, nextToken: String, filters: PostFilterInput)`
+- `commentsPage(limit: Int, nextToken: String, filters: CommentFilterInput)`
+- `postsByAuthorPage(authorId: String!, limit: Int, nextToken: String, filters: PostFilterInput)`
+- `commentsByPostPage(postId: String!, limit: Int, nextToken: String, filters: CommentFilterInput)`
+
+Regras de geração de filtros:
+
+- Campos escalares suportados geram `*_eq`
+- Campos booleanos geram também `*_is`
+- Campos `Literal`/`Enum` geram também `*_is_in`
+- Campos de data (`date`/`datetime`) e numéricos (`int`/`float`) geram `*_eq`, `*_gte`, `*_gt`, `*_lte` e `*_lt`
+
+Exemplo:
+
+```graphql
+query FilteredPosts($authorId: String!, $createdAt: DateTime!) {
+  postsByAuthor(
+    authorId: $authorId
+    filters: { createdAtEq: $createdAt }
+  ) {
+    postId
+    title
+  }
+}
+```
+
+Exemplo com paginação por token:
+
+```graphql
+query PaginatedPosts($authorId: String!, $nextToken: String) {
+  postsByAuthorPage(authorId: $authorId, limit: 2, nextToken: $nextToken) {
+    items {
+      postId
+      title
+    }
+    nextToken
+  }
+}
+```
+
 ## IDs automáticos com ULID
 
 Os campos `user_id`, `post_id` e `comment_id` agora são gerados automaticamente com `python-ulid` quando não são enviados no input. Isso mantém os modelos Pydantic como fonte única para validação e para os tipos GraphQL (`graphene-pydantic`).

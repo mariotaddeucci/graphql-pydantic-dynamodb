@@ -1,4 +1,8 @@
-from typing import Any, cast
+from datetime import date, datetime
+from enum import Enum
+from functools import lru_cache
+from types import UnionType
+from typing import Any, Literal, Union, cast, get_args, get_origin
 
 import graphene
 from graphene_pydantic import PydanticInputObjectType, PydanticObjectType
@@ -32,6 +36,91 @@ def _to_input_type(model: type[BaseModel]) -> type[PydanticInputObjectType]:
     )
 
 
+def _unwrap_optional(annotation: Any) -> Any:
+    origin = get_origin(annotation)
+    if origin not in {UnionType, Union}:
+        return annotation
+    non_none = [arg for arg in get_args(annotation) if arg is not type(None)]
+    if len(non_none) != 1:
+        return annotation
+    return _unwrap_optional(non_none[0])
+
+
+@lru_cache(maxsize=None)
+def _to_graphene_enum(enum_type: type[Enum]) -> type[graphene.Enum]:
+    return graphene.Enum.from_enum(enum_type)
+
+
+def _is_enum(annotation: Any) -> bool:
+    return isinstance(annotation, type) and issubclass(annotation, Enum)
+
+
+def _is_literal(annotation: Any) -> bool:
+    return get_origin(annotation) is Literal
+
+
+def _literal_scalar(annotation: Any) -> Any | None:
+    literal_values = get_args(annotation)
+    if not literal_values:
+        return None
+    if all(isinstance(value, str) for value in literal_values):
+        return graphene.String
+    if all(isinstance(value, bool) for value in literal_values):
+        return graphene.Boolean
+    if all(isinstance(value, int) and not isinstance(value, bool) for value in literal_values):
+        return graphene.Int
+    return None
+
+
+def _graphene_scalar(annotation: Any) -> Any | None:
+    normalized = _unwrap_optional(annotation)
+    if normalized is str:
+        return graphene.String
+    if normalized is int:
+        return graphene.Int
+    if normalized is float:
+        return graphene.Float
+    if normalized is bool:
+        return graphene.Boolean
+    if normalized is datetime:
+        return graphene.DateTime
+    if normalized is date:
+        return graphene.Date
+    if _is_enum(normalized):
+        return _to_graphene_enum(normalized)
+    if _is_literal(normalized):
+        return _literal_scalar(normalized)
+    return None
+
+
+def _build_filter_fields(field_name: str, annotation: Any) -> dict[str, graphene.InputField]:
+    scalar = _graphene_scalar(annotation)
+    if scalar is None:
+        return {}
+
+    normalized = _unwrap_optional(annotation)
+    fields = {f"{field_name}_eq": graphene.InputField(scalar)}
+    if normalized is bool:
+        fields[f"{field_name}_is"] = graphene.InputField(graphene.Boolean)
+    if normalized in {datetime, date, int, float}:
+        fields[f"{field_name}_gte"] = graphene.InputField(scalar)
+        fields[f"{field_name}_gt"] = graphene.InputField(scalar)
+        fields[f"{field_name}_lte"] = graphene.InputField(scalar)
+        fields[f"{field_name}_lt"] = graphene.InputField(scalar)
+    if _is_enum(normalized) or _is_literal(normalized):
+        fields[f"{field_name}_is_in"] = graphene.InputField(graphene.List(graphene.NonNull(scalar)))
+    return fields
+
+
+def _to_filter_input_type(model: type[BaseModel]) -> type[graphene.InputObjectType]:
+    fields: dict[str, graphene.InputField] = {}
+    for field_name, field_info in model.model_fields.items():
+        fields.update(_build_filter_fields(field_name, field_info.annotation))
+
+    type_name = f"{model.__name__.removesuffix('Model')}FilterInput"
+    return cast(type[graphene.InputObjectType], type(type_name, (graphene.InputObjectType,), fields))
+
+
 def _get_service(info: graphene.ResolveInfo) -> BlogService:
     context = info.context
     if isinstance(context, dict) and isinstance(context.get("service"), BlogService):
@@ -42,19 +131,33 @@ def _get_service(info: graphene.ResolveInfo) -> BlogService:
 
 
 class UserType(PydanticObjectType):
-    posts = graphene.List(lambda: PostType, limit=graphene.Int(default_value=20))
+    posts = graphene.List(
+        lambda: PostType,
+        limit=graphene.Int(default_value=20),
+        filters=graphene.Argument(lambda: PostFilterInputType),
+    )
 
     class Meta:
         model = UserModel
 
     @staticmethod
-    def resolve_posts(parent: UserModel, info: graphene.ResolveInfo, limit: int = 20) -> list[PostModel]:
-        return _get_service(info).list_posts_by_author(parent.user_id, limit=limit)
+    def resolve_posts(
+        parent: UserModel,
+        info: graphene.ResolveInfo,
+        limit: int = 20,
+        filters: Any = None,
+    ) -> list[PostModel]:
+        payload_filters = _to_mapping(filters) if filters is not None else None
+        return _get_service(info).list_posts_by_author(parent.user_id, limit=limit, filters=payload_filters)
 
 
 class PostType(PydanticObjectType):
     author = graphene.Field(UserType)
-    comments = graphene.List(lambda: CommentType, limit=graphene.Int(default_value=20))
+    comments = graphene.List(
+        lambda: CommentType,
+        limit=graphene.Int(default_value=20),
+        filters=graphene.Argument(lambda: CommentFilterInputType),
+    )
 
     class Meta:
         model = PostModel
@@ -68,8 +171,10 @@ class PostType(PydanticObjectType):
         parent: PostModel,
         info: graphene.ResolveInfo,
         limit: int = 20,
+        filters: Any = None,
     ) -> list[CommentModel]:
-        return _get_service(info).list_comments_by_post(parent.post_id, limit=limit)
+        payload_filters = _to_mapping(filters) if filters is not None else None
+        return _get_service(info).list_comments_by_post(parent.post_id, limit=limit, filters=payload_filters)
 
 
 class CommentType(PydanticObjectType):
@@ -88,9 +193,27 @@ class CommentType(PydanticObjectType):
         return _get_service(info).get_post(parent.post_id)
 
 
+class UserPageType(graphene.ObjectType):
+    items = graphene.List(UserType, required=True)
+    next_token = graphene.String()
+
+
+class PostPageType(graphene.ObjectType):
+    items = graphene.List(PostType, required=True)
+    next_token = graphene.String()
+
+
+class CommentPageType(graphene.ObjectType):
+    items = graphene.List(CommentType, required=True)
+    next_token = graphene.String()
+
+
 CreateUserInputType = _to_input_type(CreateUserInput)
 CreatePostInputType = _to_input_type(CreatePostInput)
 CreateCommentInputType = _to_input_type(CreateCommentInput)
+UserFilterInputType = _to_filter_input_type(UserModel)
+PostFilterInputType = _to_filter_input_type(PostModel)
+CommentFilterInputType = _to_filter_input_type(CommentModel)
 
 
 class CreateUser(graphene.Mutation):
@@ -135,19 +258,107 @@ class CreateComment(graphene.Mutation):
             raise GraphQLError(str(exc)) from exc
 
 
+def _build_list_resolver(service_method: str, required_fields: tuple[str, ...] = ()) -> Any:
+    def resolver(
+        root: Any,
+        info: graphene.ResolveInfo,
+        limit: int = 20,
+        filters: Any = None,
+        **kwargs: Any,
+    ) -> Any:
+        payload_filters = _to_mapping(filters) if filters is not None else None
+        resolver_kwargs: dict[str, Any] = {"limit": limit, "filters": payload_filters}
+        for field_name in required_fields:
+            resolver_kwargs[field_name] = kwargs[field_name]
+        return getattr(_get_service(info), service_method)(**resolver_kwargs)
+
+    return staticmethod(resolver)
+
+
+def _build_page_resolver(service_method: str, required_fields: tuple[str, ...] = ()) -> Any:
+    def resolver(
+        root: Any,
+        info: graphene.ResolveInfo,
+        limit: int = 20,
+        next_token: str | None = None,
+        filters: Any = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        payload_filters = _to_mapping(filters) if filters is not None else None
+        resolver_kwargs: dict[str, Any] = {
+            "limit": limit,
+            "next_token": next_token,
+            "filters": payload_filters,
+        }
+        for field_name in required_fields:
+            resolver_kwargs[field_name] = kwargs[field_name]
+        page = getattr(_get_service(info), service_method)(**resolver_kwargs)
+        return {"items": page.items, "next_token": page.next_token}
+
+    return staticmethod(resolver)
+
+
 class Query(graphene.ObjectType):
     user = graphene.Field(UserType, user_id=graphene.String(required=True))
-    users = graphene.List(UserType, limit=graphene.Int(default_value=20))
+    users = graphene.List(
+        UserType,
+        limit=graphene.Int(default_value=20),
+        filters=graphene.Argument(UserFilterInputType),
+    )
     post = graphene.Field(PostType, post_id=graphene.String(required=True))
+    posts = graphene.List(
+        PostType,
+        limit=graphene.Int(default_value=20),
+        filters=graphene.Argument(PostFilterInputType),
+    )
+    comments = graphene.List(
+        CommentType,
+        limit=graphene.Int(default_value=20),
+        filters=graphene.Argument(CommentFilterInputType),
+    )
     posts_by_author = graphene.List(
         PostType,
         author_id=graphene.String(required=True),
         limit=graphene.Int(default_value=20),
+        filters=graphene.Argument(PostFilterInputType),
     )
     comments_by_post = graphene.List(
         CommentType,
         post_id=graphene.String(required=True),
         limit=graphene.Int(default_value=20),
+        filters=graphene.Argument(CommentFilterInputType),
+    )
+    users_page = graphene.Field(
+        UserPageType,
+        limit=graphene.Int(default_value=20),
+        next_token=graphene.String(),
+        filters=graphene.Argument(UserFilterInputType),
+    )
+    posts_page = graphene.Field(
+        PostPageType,
+        limit=graphene.Int(default_value=20),
+        next_token=graphene.String(),
+        filters=graphene.Argument(PostFilterInputType),
+    )
+    comments_page = graphene.Field(
+        CommentPageType,
+        limit=graphene.Int(default_value=20),
+        next_token=graphene.String(),
+        filters=graphene.Argument(CommentFilterInputType),
+    )
+    posts_by_author_page = graphene.Field(
+        PostPageType,
+        author_id=graphene.String(required=True),
+        limit=graphene.Int(default_value=20),
+        next_token=graphene.String(),
+        filters=graphene.Argument(PostFilterInputType),
+    )
+    comments_by_post_page = graphene.Field(
+        CommentPageType,
+        post_id=graphene.String(required=True),
+        limit=graphene.Int(default_value=20),
+        next_token=graphene.String(),
+        filters=graphene.Argument(CommentFilterInputType),
     )
 
     @staticmethod
@@ -155,30 +366,19 @@ class Query(graphene.ObjectType):
         return _get_service(info).get_user(user_id)
 
     @staticmethod
-    def resolve_users(root: Any, info: graphene.ResolveInfo, limit: int = 20) -> list[UserModel]:
-        return _get_service(info).list_users(limit=limit)
-
-    @staticmethod
     def resolve_post(root: Any, info: graphene.ResolveInfo, post_id: str) -> PostModel | None:
         return _get_service(info).get_post(post_id)
 
-    @staticmethod
-    def resolve_posts_by_author(
-        root: Any,
-        info: graphene.ResolveInfo,
-        author_id: str,
-        limit: int = 20,
-    ) -> list[PostModel]:
-        return _get_service(info).list_posts_by_author(author_id=author_id, limit=limit)
-
-    @staticmethod
-    def resolve_comments_by_post(
-        root: Any,
-        info: graphene.ResolveInfo,
-        post_id: str,
-        limit: int = 20,
-    ) -> list[CommentModel]:
-        return _get_service(info).list_comments_by_post(post_id=post_id, limit=limit)
+    resolve_users = _build_list_resolver("list_users")
+    resolve_posts = _build_list_resolver("list_posts")
+    resolve_comments = _build_list_resolver("list_comments")
+    resolve_posts_by_author = _build_list_resolver("list_posts_by_author", ("author_id",))
+    resolve_comments_by_post = _build_list_resolver("list_comments_by_post", ("post_id",))
+    resolve_users_page = _build_page_resolver("list_users_page")
+    resolve_posts_page = _build_page_resolver("list_posts_page")
+    resolve_comments_page = _build_page_resolver("list_comments_page")
+    resolve_posts_by_author_page = _build_page_resolver("list_posts_by_author_page", ("author_id",))
+    resolve_comments_by_post_page = _build_page_resolver("list_comments_by_post_page", ("post_id",))
 
 
 class Mutation(graphene.ObjectType):

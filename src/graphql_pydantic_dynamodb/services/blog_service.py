@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Any
 
 from graphql_pydantic_dynamodb.core.dynamodb import get_dynamodb_client
 from graphql_pydantic_dynamodb.domain.models import (
@@ -11,6 +12,7 @@ from graphql_pydantic_dynamodb.domain.models import (
 )
 from graphql_pydantic_dynamodb.persistence.repositories import (
     CommentRepository,
+    PageResult,
     PostRepository,
     UserRepository,
 )
@@ -33,8 +35,16 @@ class BlogService:
     def get_user(self, user_id: str) -> UserModel | None:
         return self.users.get(user_id)
 
-    def list_users(self, limit: int = 20) -> list[UserModel]:
-        return self.users.list(limit=limit)
+    def list_users(self, limit: int = 20, filters: dict[str, Any] | None = None) -> list[UserModel]:
+        return self.users.list(limit=limit, filters=filters)
+
+    def list_users_page(
+        self,
+        limit: int = 20,
+        next_token: str | None = None,
+        filters: dict[str, Any] | None = None,
+    ) -> PageResult[UserModel]:
+        return self.users.list_page(limit=limit, next_token=next_token, filters=filters)
 
     def create_post(self, payload: CreatePostInput) -> PostModel:
         if self.get_user(payload.author_id) is None:
@@ -44,8 +54,38 @@ class BlogService:
     def get_post(self, post_id: str) -> PostModel | None:
         return self.posts.get(post_id)
 
-    def list_posts_by_author(self, author_id: str, limit: int = 20) -> list[PostModel]:
-        return self.posts.list_by_author(author_id=author_id, limit=limit)
+    def list_posts(self, limit: int = 20, filters: dict[str, Any] | None = None) -> list[PostModel]:
+        return self.posts.list(limit=limit, filters=filters)
+
+    def list_posts_page(
+        self,
+        limit: int = 20,
+        next_token: str | None = None,
+        filters: dict[str, Any] | None = None,
+    ) -> PageResult[PostModel]:
+        return self.posts.list_page(limit=limit, next_token=next_token, filters=filters)
+
+    def list_posts_by_author(
+        self,
+        author_id: str,
+        limit: int = 20,
+        filters: dict[str, Any] | None = None,
+    ) -> list[PostModel]:
+        return self.posts.list_by_author(author_id=author_id, limit=limit, filters=filters)
+
+    def list_posts_by_author_page(
+        self,
+        author_id: str,
+        limit: int = 20,
+        next_token: str | None = None,
+        filters: dict[str, Any] | None = None,
+    ) -> PageResult[PostModel]:
+        return self.posts.list_by_author_page(
+            author_id=author_id,
+            limit=limit,
+            next_token=next_token,
+            filters=filters,
+        )
 
     def create_comment(self, payload: CreateCommentInput) -> CommentModel:
         if self.get_user(payload.author_id) is None:
@@ -54,8 +94,38 @@ class BlogService:
             raise ValueError(f"Post '{payload.post_id}' was not found.")
         return self.comments.create(payload)
 
-    def list_comments_by_post(self, post_id: str, limit: int = 20) -> list[CommentModel]:
-        return self.comments.list_by_post(post_id=post_id, limit=limit)
+    def list_comments(self, limit: int = 20, filters: dict[str, Any] | None = None) -> list[CommentModel]:
+        return self.comments.list(limit=limit, filters=filters)
+
+    def list_comments_page(
+        self,
+        limit: int = 20,
+        next_token: str | None = None,
+        filters: dict[str, Any] | None = None,
+    ) -> PageResult[CommentModel]:
+        return self.comments.list_page(limit=limit, next_token=next_token, filters=filters)
+
+    def list_comments_by_post(
+        self,
+        post_id: str,
+        limit: int = 20,
+        filters: dict[str, Any] | None = None,
+    ) -> list[CommentModel]:
+        return self.comments.list_by_post(post_id=post_id, limit=limit, filters=filters)
+
+    def list_comments_by_post_page(
+        self,
+        post_id: str,
+        limit: int = 20,
+        next_token: str | None = None,
+        filters: dict[str, Any] | None = None,
+    ) -> PageResult[CommentModel]:
+        return self.comments.list_by_post_page(
+            post_id=post_id,
+            limit=limit,
+            next_token=next_token,
+            filters=filters,
+        )
 
 
 @lru_cache(maxsize=1)
