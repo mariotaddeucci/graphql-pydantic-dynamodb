@@ -3,6 +3,7 @@
 Projeto base completo com:
 
 - **GraphQL** com `graphene` + `graphene-pydantic`
+- **GraphiQL** no endpoint Lambda (`GET`) para exploração do schema
 - **Modelagem tipada** com `pydantic`
 - **Persistência no DynamoDB** com `dynantic`
 - **Execução em AWS Lambda** via handler Python
@@ -102,6 +103,10 @@ query PaginatedPosts($authorId: String!, $nextToken: String) {
 
 Os campos `user_id`, `post_id` e `comment_id` agora são gerados automaticamente com `python-ulid` quando não são enviados no input. Isso mantém os modelos Pydantic como fonte única para validação e para os tipos GraphQL (`graphene-pydantic`).
 
+## Descrições dos modelos no schema GraphQL
+
+As descrições dos modelos e campos agora são definidas diretamente nos modelos Pydantic (`Field(description=...)` e docstrings das classes). Essas descrições são expostas no schema GraphQL e ficam disponíveis via introspection para o frontend (incluindo o GraphiQL).
+
 ## Configuração via ambiente
 
 Variáveis prefixadas com `APP_`:
@@ -133,6 +138,12 @@ uv run pytest
 uv run graphql-pydantic-dynamodb
 ```
 
+4. Subir servidor local com GraphiQL:
+
+```bash
+uv run python dev.py --reload
+```
+
 ## Exemplo de payload para Lambda
 
 ```json
@@ -147,3 +158,10 @@ Handler de entrada:
 ```python
 from graphql_pydantic_dynamodb.lambda_handler import handler
 ```
+
+### GraphiQL no Lambda
+
+Com a mesma função Lambda:
+
+- `GET /graphql` retorna a interface GraphiQL
+- `POST /graphql` executa queries/mutations GraphQL
