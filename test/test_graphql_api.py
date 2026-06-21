@@ -1,9 +1,17 @@
+import re
+
 from graphql_pydantic_dynamodb.graphql.schema import execute_graphql
 from graphql_pydantic_dynamodb.services.blog_service import BlogService
+
+_ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 
 
 def _assert_no_errors(result: object) -> None:
     assert result.errors is None, [error.formatted for error in result.errors]
+
+
+def _assert_ulid(value: str) -> None:
+    assert _ULID_RE.fullmatch(value)
 
 
 def test_graphql_creates_entities_and_resolves_relationships(blog_service: BlogService) -> None:
@@ -19,21 +27,21 @@ def test_graphql_creates_entities_and_resolves_relationships(blog_service: BlogS
 
     author = execute_graphql(
         query=create_user,
-        variables={
-            "input": {"userId": "user-1", "name": "Alice", "email": "alice@example.com"}
-        },
+        variables={"input": {"name": "Alice", "email": "alice@example.com"}},
         service=blog_service,
     )
     _assert_no_errors(author)
-    assert author.data["createUser"]["userId"] == "user-1"
+    author_id = author.data["createUser"]["userId"]
+    _assert_ulid(author_id)
 
     commenter = execute_graphql(
         query=create_user,
-        variables={"input": {"userId": "user-2", "name": "Bob", "email": "bob@example.com"}},
+        variables={"input": {"name": "Bob", "email": "bob@example.com"}},
         service=blog_service,
     )
     _assert_no_errors(commenter)
-    assert commenter.data["createUser"]["userId"] == "user-2"
+    commenter_id = commenter.data["createUser"]["userId"]
+    _assert_ulid(commenter_id)
 
     create_post = """
     mutation CreatePost($input: CreatePostInputType!) {
@@ -48,8 +56,7 @@ def test_graphql_creates_entities_and_resolves_relationships(blog_service: BlogS
         query=create_post,
         variables={
             "input": {
-                "postId": "post-1",
-                "authorId": "user-1",
+                "authorId": author_id,
                 "title": "GraphQL na Lambda",
                 "content": "Conteudo",
                 "tags": ["serverless", "graphql"]
@@ -58,7 +65,9 @@ def test_graphql_creates_entities_and_resolves_relationships(blog_service: BlogS
         service=blog_service,
     )
     _assert_no_errors(post)
-    assert post.data["createPost"]["authorId"] == "user-1"
+    post_id = post.data["createPost"]["postId"]
+    _assert_ulid(post_id)
+    assert post.data["createPost"]["authorId"] == author_id
 
     create_comment = """
     mutation CreateComment($input: CreateCommentInputType!) {
@@ -72,16 +81,16 @@ def test_graphql_creates_entities_and_resolves_relationships(blog_service: BlogS
         query=create_comment,
         variables={
             "input": {
-                "postId": "post-1",
-                "commentId": "comment-1",
-                "authorId": "user-2",
+                "postId": post_id,
+                "authorId": commenter_id,
                 "body": "Excelente artigo!"
             }
         },
         service=blog_service,
     )
     _assert_no_errors(comment)
-    assert comment.data["createComment"]["commentId"] == "comment-1"
+    comment_id = comment.data["createComment"]["commentId"]
+    _assert_ulid(comment_id)
 
     query = """
     query PostWithRelations($postId: String!, $userId: String!) {
@@ -112,14 +121,15 @@ def test_graphql_creates_entities_and_resolves_relationships(blog_service: BlogS
     """
     result = execute_graphql(
         query=query,
-        variables={"postId": "post-1", "userId": "user-1"},
+        variables={"postId": post_id, "userId": author_id},
         service=blog_service,
     )
     _assert_no_errors(result)
 
-    assert result.data["post"]["author"]["userId"] == "user-1"
-    assert result.data["post"]["comments"][0]["author"]["userId"] == "user-2"
-    assert result.data["user"]["posts"][0]["postId"] == "post-1"
+    assert result.data["post"]["author"]["userId"] == author_id
+    assert result.data["post"]["comments"][0]["author"]["userId"] == commenter_id
+    assert result.data["post"]["comments"][0]["commentId"] == comment_id
+    assert result.data["user"]["posts"][0]["postId"] == post_id
 
 
 def test_graphql_rejects_post_without_existing_author(blog_service: BlogService) -> None:
@@ -134,7 +144,6 @@ def test_graphql_rejects_post_without_existing_author(blog_service: BlogService)
         query=mutation,
         variables={
             "input": {
-                "postId": "post-x",
                 "authorId": "unknown-user",
                 "title": "Nao deve criar",
                 "content": "x",

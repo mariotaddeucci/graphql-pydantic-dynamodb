@@ -1,8 +1,13 @@
 from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field, TypeAdapter, field_validator
+from ulid import ULID
 
 _EMAIL_ADAPTER = TypeAdapter(EmailStr)
+
+
+def _new_ulid() -> str:
+    return str(ULID())
 
 
 class UserModel(BaseModel):
@@ -30,9 +35,14 @@ class CommentModel(BaseModel):
 
 
 class CreateUserInput(BaseModel):
-    user_id: str = Field(min_length=1, max_length=128)
+    user_id: str = Field(default_factory=_new_ulid, min_length=1, max_length=128)
     name: str = Field(min_length=1, max_length=120)
     email: str
+
+    @field_validator("user_id", mode="before")
+    @classmethod
+    def default_user_id(cls, value: str | None) -> str:
+        return value if value is not None else _new_ulid()
 
     @field_validator("email")
     @classmethod
@@ -41,15 +51,25 @@ class CreateUserInput(BaseModel):
 
 
 class CreatePostInput(BaseModel):
-    post_id: str = Field(min_length=1, max_length=128)
+    post_id: str = Field(default_factory=_new_ulid, min_length=1, max_length=128)
     author_id: str = Field(min_length=1, max_length=128)
     title: str = Field(min_length=1, max_length=200)
     content: str = Field(min_length=1)
     tags: list[str] = Field(default_factory=list)
 
+    @field_validator("post_id", mode="before")
+    @classmethod
+    def default_post_id(cls, value: str | None) -> str:
+        return value if value is not None else _new_ulid()
+
 
 class CreateCommentInput(BaseModel):
     post_id: str = Field(min_length=1, max_length=128)
-    comment_id: str = Field(min_length=1, max_length=128)
+    comment_id: str = Field(default_factory=_new_ulid, min_length=1, max_length=128)
     author_id: str = Field(min_length=1, max_length=128)
     body: str = Field(min_length=1)
+
+    @field_validator("comment_id", mode="before")
+    @classmethod
+    def default_comment_id(cls, value: str | None) -> str:
+        return value if value is not None else _new_ulid()

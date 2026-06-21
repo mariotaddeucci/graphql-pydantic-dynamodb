@@ -45,6 +45,10 @@ Os *joins* são resolvidos nos resolvers GraphQL:
 - `Comment.author`
 - `Comment.post`
 
+## IDs automáticos com ULID
+
+Os campos `user_id`, `post_id` e `comment_id` agora são gerados automaticamente com `python-ulid` quando não são enviados no input. Isso mantém os modelos Pydantic como fonte única para validação e para os tipos GraphQL (`graphene-pydantic`).
+
 ## Configuração via ambiente
 
 Variáveis prefixadas com `APP_`:
