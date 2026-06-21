@@ -1,0 +1,33 @@
+[project]
+name = "graphql-pydantic-dynamodb"
+version = "0.1.0"
+description = "GraphQL API em AWS Lambda com Pydantic e DynamoDB via Dynantic"
+readme = "README.md"
+authors = [
+    { name = "Mario Taddeucci", email = "taddeucci23@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "boto3>=1.43.34",
+    "dynantic>=0.4.0",
+    "email-validator>=2.3.0",
+    "graphene>=3.4.3",
+    "graphene-pydantic>=0.6.1",
+    "pydantic-settings>=2.14.2",
+]
+
+[project.scripts]
+graphql-pydantic-dynamodb = "graphql_pydantic_dynamodb:main"
+
+[build-system]
+requires = ["uv_build>=0.11.21,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "moto>=5.2.2",
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
